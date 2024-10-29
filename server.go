@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -62,6 +64,34 @@ func main() {
 		}
 	})
 
+	r.GET("/phase-change-diagram", func(c *gin.Context) {
+		pressure := c.Query("pressure")
+		if pressure == "" {
+			c.JSON(400, gin.H{"status": "error", "message": "Pressure query parameter is missing"})
+			return
+		}
+		p, err := strconv.ParseFloat(pressure, 64)
+		if err != nil {
+			c.JSON(400, gin.H{"status": "error", "message": "Invalid pressure value"})
+			return
+		}
+
+		y1 := 0.0035
+		x1 := 10.0
+		y2 := 0.00105
+		x2 := 0.05
+		y3 := 30.0
+		x3 := 0.05
+
+		saturatedLiquidLine := ((y1-y2)/(x1-x2))*p + y1 - ((y1-y2)/(x1-x2))*x1
+		saturatedVaporLine := ((y1-y3)/(x1-x3))*p + y1 - ((y1-y3)/(x1-x3))*x1
+
+		c.JSON(200, gin.H{
+			"specific_volume_liquid": roundFloat(saturatedLiquidLine, 6),
+			"specific_volume_vapor":  roundFloat(saturatedVaporLine, 6),
+		})
+	})
+
 	r.Run(fmt.Sprintf(":%s", port))
 }
 
@@ -72,4 +102,9 @@ func containsSystem(slice []string, item string) int {
 		}
 	}
 	return -1
+}
+
+func roundFloat(val float64, precision uint) float64 {
+	ratio := math.Pow(10, float64(precision))
+	return math.Round(val*ratio) / ratio
 }
